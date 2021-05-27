@@ -12,7 +12,7 @@ namespace TestNetCoreConsole
 
         static async Task Main(string[] args)
         {
-            var interactor = new ThreeTestSrctoVideoMixerToRtmpGstInteractor();
+            var interactor = new AppSrcToAutoVideoSinkGstInteractor();
             interactor.Interact();
             return;
             bool needVideo = Array.Exists(args, arg => (arg == "-v") || (arg == "--video"));

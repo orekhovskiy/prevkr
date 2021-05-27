@@ -8,7 +8,6 @@ namespace TestNetCoreConsole.GstInteractors
 {
     class AppSrcToAutoVideoSinkGstInteractor : AbstractGstInteractor
     {
-        public Delegate NeedDataHandler;
         private static Gst.Element appsrc;
         private void PushData(object o, System.EventArgs args)
         {
@@ -17,6 +16,7 @@ namespace TestNetCoreConsole.GstInteractors
                 mseconds = appsrc.Clock.Time / 1000000;
             Gst.Buffer buffer = DrawData(mseconds);
             appsrc.Emit("push-buffer", buffer);
+            buffer.Dispose();
         }
 
         private Gst.Buffer DrawData(ulong mseconds)
@@ -35,18 +35,25 @@ namespace TestNetCoreConsole.GstInteractors
                 context.Stroke();
             }
             img.Dispose();
-            return new Gst.Buffer(buffer);
+            var gstBuffer = new Gst.Buffer(buffer);
+            return gstBuffer;
         }
         public override void Interact()
         {
             appsrc = Gst.ElementFactory.Make("appsrc", "source");
-            var conv = Gst.ElementFactory.Make("videoconvert", "conv");
-            var videosink = Gst.ElementFactory.Make("autovideosink", "videosink");
+            var videoconvert = Gst.ElementFactory.Make("videoconvert", "videoconvert");
+            var sink = Gst.ElementFactory.Make("autovideosink", "sink");
+            var x264enc = Gst.ElementFactory.Make("x264enc", "x264enc");
+            var flvmux = Gst.ElementFactory.Make("flvmux", "flvmux");
+            var queue1 = Gst.ElementFactory.Make("queue", "queue1");
+            var rtmpsink = Gst.ElementFactory.Make("rtmpsink", "rtmpsink");
+            flvmux.SetProperty("streamable", new GLib.Value(true));
+            rtmpsink.SetProperty("location", new GLib.Value("rtmp://localhost/live"));
 
-            var caps = Gst.Global.CapsFromString("video/x-raw, format=RGBA, width=640, height=480, framerate=4/1");
+            var caps = Gst.Global.CapsFromString("video/x-raw, format=RGBA, width=640, height=480, framerate=30/1");
             appsrc.SetProperty("caps", new GLib.Value(caps));
-            _pipeline.Add(appsrc, conv, videosink);
-            Gst.Element.Link(appsrc, conv, videosink);
+            _pipeline.Add(appsrc, videoconvert, x264enc, flvmux, queue1, rtmpsink);
+            Gst.Element.Link(appsrc, videoconvert, x264enc, flvmux, queue1, rtmpsink);
             appsrc.SetProperty("stream-type", new GLib.Value(0));
             appsrc.SetProperty("format", new GLib.Value(Gst.Format.Time));
             appsrc.SetProperty("is-live", new GLib.Value(true));

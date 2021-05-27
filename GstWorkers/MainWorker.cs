@@ -10,28 +10,28 @@ namespace TestNetCoreConsole.GstWorkers
     class MainWorker
     {
         private Gst.Pipeline _pipeline;
-        private Gst.Element videomixer;
-        private Gst.Element queue;
-        private Gst.Element videoconvert;
-        private Gst.Element x264enc;
-        private Gst.Element flvmux;
-        private Gst.Element queue1;
-        private Gst.Element rtmpsink;
+        private Gst.Element _videomixer;
+        private Gst.Element _queue;
+        private Gst.Element _videoconvert;
+        private Gst.Element _x264enc;
+        private Gst.Element _flvmux;
+        private Gst.Element _queue1;
+        private Gst.Element _rtmpsink;
         public void Work()
         {
             _pipeline = new Gst.Pipeline("pipeline");
-            videomixer = Gst.ElementFactory.Make("videomixer", "mix");
-            queue = Gst.ElementFactory.Make("queue", "queue");
-            videoconvert = Gst.ElementFactory.Make("videoconvert", "videoconvert");
-            x264enc = Gst.ElementFactory.Make("x264enc", "x264enc");
-            flvmux = Gst.ElementFactory.Make("flvmux", "flvmux");
-            queue1 = Gst.ElementFactory.Make("queue", "queue1");
-            rtmpsink = Gst.ElementFactory.Make("rtmpsink", "rtmpsink");
-            flvmux.SetProperty("streamable", new GLib.Value(true));
-            rtmpsink.SetProperty("location", new GLib.Value("rtmp://localhost/live"));
+            _videomixer = Gst.ElementFactory.Make("videomixer", "mix");
+            _queue = Gst.ElementFactory.Make("queue", "queue");
+            _videoconvert = Gst.ElementFactory.Make("videoconvert", "videoconvert");
+            _x264enc = Gst.ElementFactory.Make("x264enc", "x264enc");
+            _flvmux = Gst.ElementFactory.Make("flvmux", "flvmux");
+            _queue1 = Gst.ElementFactory.Make("queue", "queue1");
+            _rtmpsink = Gst.ElementFactory.Make("rtmpsink", "rtmpsink");
+            _flvmux.SetProperty("streamable", new GLib.Value(true));
+            _rtmpsink.SetProperty("location", new GLib.Value("rtmp://localhost/live"));
 
-            _pipeline.Add(videomixer, queue, videoconvert, x264enc, flvmux, queue1, rtmpsink);
-            if (!Gst.Element.Link(videomixer, queue, videoconvert, x264enc, flvmux, queue1, rtmpsink))
+            _pipeline.Add(_videomixer, _queue, _videoconvert, _x264enc, _flvmux, _queue1, _rtmpsink);
+            if (!Gst.Element.Link(_videomixer, _queue, _videoconvert, _x264enc, _flvmux, _queue1, _rtmpsink))
             {
                 Log("Not all elements could be linked");
             }
@@ -41,9 +41,11 @@ namespace TestNetCoreConsole.GstWorkers
             throw new NotImplementedException();
         }
 
-        public void RequestPad()
+        public Gst.Pad RequestPad()
         {
-
+            var mixerSinkPadTemplate = _videomixer.GetPadTemplate("sink_%u");
+            var pad = _videomixer.RequestPad(mixerSinkPadTemplate);
+            return pad;
         }
 
         private void Log(object msg)
