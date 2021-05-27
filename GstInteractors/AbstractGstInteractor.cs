@@ -15,6 +15,7 @@ namespace TestNetCoreConsole.GstInteractors
             Gst.Application.Init();
             _loop = new MainLoop();
             _pipeline = new Pipeline("pipeline");
+            GLib.ExceptionManager.UnhandledException += HandleUnhandled;
         }
         protected static void Log(object msg)
         {
@@ -89,5 +90,10 @@ namespace TestNetCoreConsole.GstInteractors
             _pipeline.Unref();
         }
         public abstract void Interact();
+        private void HandleUnhandled(UnhandledExceptionArgs args)
+        {
+            var e = ((Exception)args.ExceptionObject);
+            Log($"Exception occured: {e.Message}{e.StackTrace}");
+        }
     }
 }

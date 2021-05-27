@@ -9,6 +9,7 @@ namespace TestNetCoreConsole.GstInteractors
 
         public override void Interact()
         {
+            // gst-launch-1.0 -e videotestsrc ! queue ! videoconvert ! x264enc ! flvmux streamable=true ! queue ! rtmpsink location='rtmp://localhost/live'
             var testsrc = Gst.ElementFactory.Make("videotestsrc", "videotestsrc");
             var queue = Gst.ElementFactory.Make("queue", "queue");
             var videoconvert = Gst.ElementFactory.Make("videoconvert", "videoconvert");

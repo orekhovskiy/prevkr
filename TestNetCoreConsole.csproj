@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CairoSharp" Version="3.24.24.34" />
     <PackageReference Include="GLibSharp" Version="3.24.24.34" />
     <PackageReference Include="gstreamer-sharp-netcore" Version="0.0.8" />
     <PackageReference Include="Microsoft.MixedReality.WebRTC" Version="2.0.2" />
