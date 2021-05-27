@@ -7,17 +7,17 @@ using System.Threading.Tasks;
 
 namespace TestNetCoreConsole.GstWorkers
 {
-    class MainWorker
+    static class MainWorker
     {
-        private Gst.Pipeline _pipeline;
-        private Gst.Element _videomixer;
-        private Gst.Element _queue;
-        private Gst.Element _videoconvert;
-        private Gst.Element _x264enc;
-        private Gst.Element _flvmux;
-        private Gst.Element _queue1;
-        private Gst.Element _rtmpsink;
-        public void Work()
+        private static Gst.Pipeline _pipeline;
+        private static Gst.Element _videomixer;
+        private static Gst.Element _queue;
+        private static Gst.Element _videoconvert;
+        private static Gst.Element _x264enc;
+        private static Gst.Element _flvmux;
+        private static Gst.Element _queue1;
+        private static Gst.Element _rtmpsink;
+        public static void Work()
         {
             _pipeline = new Gst.Pipeline("pipeline");
             _videomixer = Gst.ElementFactory.Make("videomixer", "mix");
@@ -35,22 +35,70 @@ namespace TestNetCoreConsole.GstWorkers
             {
                 Log("Not all elements could be linked");
             }
+            Play();
         }
-        public void Dispose()
+        public static void Dispose()
         {
-            throw new NotImplementedException();
         }
 
-        public Gst.Pad RequestPad()
+        public static Gst.Pad RequestPad()
         {
             var mixerSinkPadTemplate = _videomixer.GetPadTemplate("sink_%u");
             var pad = _videomixer.RequestPad(mixerSinkPadTemplate);
             return pad;
         }
 
-        private void Log(object msg)
+        /*public static bool ReleasePad()
+        {
+
+        }*/
+
+        public static bool AddToPipelineAndLink(params Gst.Element[] elements)
+        {
+            try
+            {
+                _pipeline.Add(elements);
+                if (!Gst.Element.Link(elements))
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                Log(e.Message);
+                return false;
+            }
+        }
+
+        /*public static bool DisposeElements(params string[] elementNames)
+        {
+            _pipeline.
+        }*/
+
+        private static void Log(object msg)
         {
             Debugger.Log(0, "", msg.ToString());
+        }
+        private static void Play()
+        {
+            _pipeline.SetState(Gst.State.Playing);
+            // Wait until error or EOS
+            var bus = _pipeline.Bus;
+            var msg = bus.TimedPopFiltered(Gst.Constants.CLOCK_TIME_NONE, Gst.MessageType.Eos | Gst.MessageType.Error);
+
+            if (msg != null)
+            {
+                GLib.GException error;
+                string debug;
+                msg.ParseError(out error, out debug);
+                Log(error.Message);
+            }
+
+            // Free resources
+            bus.Unref();
+            _pipeline.SetState(Gst.State.Null);
+            _pipeline.Unref();
         }
     }
 }

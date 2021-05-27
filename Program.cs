@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.MixedReality.WebRTC;
 using TestNetCoreConsole.GstInteractors;
@@ -9,12 +10,34 @@ namespace TestNetCoreConsole
 {
     class Program
     {
-
         static async Task Main(string[] args)
         {
-            var interactor = new AppSrcToAutoVideoSinkGstInteractor();
-            interactor.Interact();
+            bool working = false;
+            using (var interactor = new AppSrcToAutoVideoSinkGstInteractor())
+            using (var svc = new MyWebSvc("http://127.0.0.1/mysvc/"))
+            {
+                svc.OnWebSocketConnection += ws =>
+                {
+                    var signaller = new MyWsSignaller(ws);
+
+                    var receiver = new MyWebRtcStreamReceiver(signaller);
+                    receiver.OnFrameReceived += frame =>
+                      {
+                          interactor.HandleFrame(frame);
+                          Console.WriteLine("Frame received");
+                          if (!working)
+                          {
+                              working = true;
+                              interactor.Interact($"video/x-raw, width={frame.width}, height={frame.height}, format=I420, framerate=30/1", false);
+                          }
+                      };
+
+                    receiver.Start();
+                };
+                while (Console.ReadKey().Key != ConsoleKey.Q) ;
+            }
             return;
+
             bool needVideo = Array.Exists(args, arg => (arg == "-v") || (arg == "--video"));
             bool needAudio = Array.Exists(args, arg => (arg == "-a") || (arg == "--audio"));
 
@@ -76,7 +99,8 @@ namespace TestNetCoreConsole
                 }
 
                 var signaler = new NamedPipeSignaler(pc, "testpipe");
-                signaler.SdpMessageReceived += async (SdpMessage message) => {
+                signaler.SdpMessageReceived += async (SdpMessage message) =>
+                {
                     // Note: we use 'await' to ensure the remote description is applied
                     // before calling CreateAnswer(). Failing to do so will prevent the
                     // answer from being generated, and the connection from establishing.
@@ -87,17 +111,20 @@ namespace TestNetCoreConsole
                     }
                 };
 
-                signaler.IceCandidateReceived += (IceCandidate candidate) => {
+                signaler.IceCandidateReceived += (IceCandidate candidate) =>
+                {
                     pc.AddIceCandidate(candidate);
                 };
 
                 await signaler.StartAsync();
 
-                pc.Connected += () => {
+                pc.Connected += () =>
+                {
                     Console.WriteLine("PeerConnection: connected.");
                 };
 
-                pc.IceStateChanged += (IceConnectionState newState) => {
+                pc.IceStateChanged += (IceConnectionState newState) =>
+                {
                     Console.WriteLine($"ICE state: {newState}");
                 };
 
@@ -106,9 +133,10 @@ namespace TestNetCoreConsole
                     track.AudioFrameReady += RemoteAudioFrameReady;
                 };
 
-                pc.VideoTrackAdded += (RemoteVideoTrack track) => {
+                pc.VideoTrackAdded += (RemoteVideoTrack track) =>
+                {
                     Console.WriteLine("Track added");
-                    track.I420AVideoFrameReady += RemoteFrameReady;
+                    track.I420AVideoFrameReady += RemoteVideoFrameReady;
                 };
 
                 if (needVideo)
@@ -136,14 +164,19 @@ namespace TestNetCoreConsole
             webcamSource?.Dispose();
         }
 
+        private static void Svc_OnWebSocketConnection(System.Net.WebSockets.WebSocketContext obj)
+        {
+            throw new NotImplementedException();
+        }
+
         private static void RemoteAudioFrameReady(AudioFrame frame)
         {
 
         }
 
-        public static void RemoteFrameReady(I420AVideoFrame frame)
+        public static void RemoteVideoFrameReady(I420AVideoFrame frame)
         {
-            
+
         }
     }
 }

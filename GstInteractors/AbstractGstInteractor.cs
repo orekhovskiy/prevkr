@@ -4,7 +4,7 @@ using GLib;
 
 namespace TestNetCoreConsole.GstInteractors
 {
-    public abstract class AbstractGstInteractor
+    public abstract class AbstractGstInteractor : IDisposable
     {
         protected Pipeline _pipeline;
         protected MainLoop _loop;
@@ -69,31 +69,39 @@ namespace TestNetCoreConsole.GstInteractors
                     break;
             }
         }
-        protected void Play()
+        protected void Play(bool waitForEnd = true)
         {
             _pipeline.SetState(Gst.State.Playing);
-            // Wait until error or EOS
-            var bus = _pipeline.Bus;
-            var msg = bus.TimedPopFiltered(Gst.Constants.CLOCK_TIME_NONE, Gst.MessageType.Eos | Gst.MessageType.Error);
 
-            if (msg != null)
+            if (waitForEnd)
             {
-                GLib.GException error;
-                string debug;
-                msg.ParseError(out error, out debug);
-                Log(error.Message);
-            }
+                // Wait until error or EOS
+                var bus = _pipeline.Bus;
+                var msg = bus.TimedPopFiltered(Gst.Constants.CLOCK_TIME_NONE, Gst.MessageType.Eos | Gst.MessageType.Error);
 
-            // Free resources
-            bus.Unref();
-            _pipeline.SetState(Gst.State.Null);
-            _pipeline.Unref();
+                if (msg != null)
+                {
+                    GLib.GException error;
+                    string debug;
+                    msg.ParseError(out error, out debug);
+                    Log(error.Message);
+                }
+
+            }
         }
         public abstract void Interact();
         private void HandleUnhandled(UnhandledExceptionArgs args)
         {
             var e = ((Exception)args.ExceptionObject);
             Log($"Exception occured: {e.Message}{e.StackTrace}");
+        }
+
+        public void Dispose()
+        {
+            // Free resources
+            _pipeline.Bus.Unref();
+            _pipeline.SetState(Gst.State.Null);
+            _pipeline.Unref();
         }
     }
 }
